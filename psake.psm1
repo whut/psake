@@ -199,6 +199,15 @@ function Properties {
 }
 
 # .ExternalHelp  psake.psm1-help.xml
+function DerivedProperties {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position=0,Mandatory=1)][scriptblock]$derivedProperties
+    )
+    $psake.context.Peek().derivedProperties += $derivedProperties
+}
+
+# .ExternalHelp  psake.psm1-help.xml
 function Include {
     [CmdletBinding()]
     param(
@@ -285,6 +294,7 @@ function Invoke-psake {
             "originalErrorActionPreference" = $global:ErrorActionPreference;
             "tasks" = @{};
             "properties" = @();
+            "derivedProperties" = @();
             "includes" = new-object System.Collections.Queue;
             "config" = Create-ConfigurationForNewContext $buildFile $framework
         })
@@ -338,6 +348,10 @@ function Invoke-psake {
             if (test-path "variable:\$key") {
                 set-item -path "variable:\$key" -value $properties.$key | out-null
             }
+        }
+        
+        foreach ($derivedPropertyBlock in $currentContext.derivedProperties) {
+            . $derivedPropertyBlock 
         }
 
         # Execute the list of tasks or the default task
@@ -696,4 +710,4 @@ $psake.build_script_dir = "" # contains a string with fully-qualified path to cu
 
 Load-Configuration
 
-export-modulemember -function invoke-psake, invoke-task, task, properties, include, formattaskname, tasksetup, taskteardown, framework, assert, exec -variable psake
+export-modulemember -function invoke-psake, invoke-task, task, properties, derivedproperties, include, formattaskname, tasksetup, taskteardown, framework, assert, exec -variable psake

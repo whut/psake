@@ -379,7 +379,7 @@ task TestParams {
         <dev:remarks>
           <maml:para>Description</maml:para>
           <maml:para>-----------</maml:para>
-          <maml:para>Runs the build script called 'properties.ps1' and passes in parameters 'x' and 'y' with values '1' and '2'</maml:para>
+          <maml:para>Runs the build script called 'properties.ps1' and passes in properties 'x' and 'y' with values '1' and '2'</maml:para>
 		  <maml:para>This feature allows you to over-ride existing properties in your build script.</maml:para>
           <maml:para />
 		  <maml:para>Here's the .\properties.ps1 build script</maml:para>
@@ -405,6 +405,44 @@ task TestProperties {
           </command:commandLine>
         </command:commandLines>
       </command:example>
+	   <command:example>	  
+        <maml:title>--------------  EXAMPLE 8 --------------</maml:title>
+        <maml:introduction>
+          <maml:para>C:\PS&gt;</maml:para>
+        </maml:introduction>
+        <dev:code>Invoke-psake .\derivedproperties.ps1 -properties @{"version_build"="1"}</dev:code>
+        <dev:remarks>
+          <maml:para>Description</maml:para>
+          <maml:para>-----------</maml:para>
+          <maml:para>Runs the build script called 'derivedproperties.ps1' and passes in property 'version_build' with value '1'</maml:para>
+          <maml:para>Here's the .\derivedproperties.ps1 build script:</maml:para> 
+		  <maml:para />
+		  <maml:para>
+Properties {
+  $version_major = "1.0.0"
+  $version_build = "0"
+  $version_in_properties = "$version_major.$version_build"
+}
+
+DerivedProperties {
+  $version = "$version_major.$version_build"
+}
+
+Task default -depends ShowVersion
+
+Task ShowVersion {
+  write-host "version_in_properties: $version_in_properties, version: $version"
+}</maml:para>
+          <maml:para />
+		  <maml:para>The value of the $version_property variable should be the string 1.0.0.0 and the value of the $version variable should be "1.0.0.1.</maml:para>
+          <maml:para />
+        </dev:remarks>
+        <command:commandLines>
+          <command:commandLine>
+            <command:commandText />
+          </command:commandLine>
+        </command:commandLines>
+      </command:example>
     </command:examples>
     <maml:relatedLinks>
       <maml:navigationLink>
@@ -417,6 +455,10 @@ task TestProperties {
       </maml:navigationLink>
 	  <maml:navigationLink>	
 	    <maml:linkText>Properties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
@@ -571,6 +613,10 @@ Build Succeeded</maml:para>
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
 		<maml:linkText>Invoke-psake</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
@@ -719,6 +765,10 @@ Build Succeeded</maml:para>
       </maml:navigationLink>
 	  <maml:navigationLink>	
 	    <maml:linkText>Properties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
@@ -1042,6 +1092,10 @@ Task TaskC {
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
 		<maml:linkText>Invoke-psake</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
@@ -1183,6 +1237,10 @@ Task Clean {
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
 		<maml:linkText>Invoke-psake</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
@@ -1316,6 +1374,10 @@ Task Clean {
 	  
     </command:examples>
     <maml:relatedLinks>
+	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
       <maml:navigationLink>
         <maml:linkText>Task</maml:linkText>
 	     <maml:uri />
@@ -1346,6 +1408,128 @@ Task Clean {
       </maml:navigationLink>
 	  <maml:navigationLink>	
 		<maml:linkText>Framework</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+    </maml:relatedLinks>
+  </command:command>
+  
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+    <command:details>
+      <command:name>DerivedProperties</command:name>
+      <maml:description>
+        <maml:para>Define a scriptblock that contains assignments to variables that will be available to all tasks in the build script. "DerivedProperties" works just like "Properties", but are executed after them and after properties pased to Invoke-Psake</maml:para>
+      </maml:description>
+      <maml:copyright>
+        <maml:para />
+      </maml:copyright>
+      <command:verb></command:verb>
+      <command:noun></command:noun>
+      <dev:version />
+    </command:details>
+    <maml:description>
+      <maml:para>A build script may declare a "DerivedProperties" function which allows you to define variables that will be available to all the "Task" functions in the build script. Variables in "DerivedProperties" can be calculated from variables set before in "Properties" and in properties argument to "Invoke-Psake"</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <command:name>DerivedProperties</command:name>
+        <command:parameter require="false" variableLength="false" globbing="false" pipelineInput="false" postion="0">
+          <maml:name>derivedProperties</maml:name>
+          <command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+        </command:parameter>
+       </command:syntaxItem>
+    </command:syntax>	
+	 <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false (ByValue)" position="0">
+        <maml:name>derivedProperties</maml:name>
+        <maml:description>
+          <maml:para>The script block containing all the variable assignment statements</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">ScriptBlock</command:parameterValue>
+        <dev:type>
+          <maml:name>ScriptBlock</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue></dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+          <maml:uri />
+          <maml:description>
+            <maml:para />
+          </maml:description>
+        </dev:type>
+        <maml:description />
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+          <maml:uri />
+          <maml:description>
+            <maml:para></maml:para>
+          </maml:description>
+        </dev:type>
+        <maml:description />
+      </command:returnValue>
+    </command:returnValues>
+    <command:terminatingErrors />
+    <command:nonTerminatingErrors />
+    <maml:alertSet>
+      <maml:title></maml:title>
+	  <maml:alert>
+		<maml:para></maml:para>	
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------------  EXAMPLE 1 --------------</maml:title>
+        <maml:introduction>
+          <maml:para>C:\PS&gt;</maml:para>
+        </maml:introduction>
+        <dev:code>A sample build script is shown below:
+
+Properties {
+  $version_major = "1.0.0"
+  $version_build = "0"
+  $version_in_properties = "$version_major.$version_build"
+}
+
+DerivedProperties {
+  $version = "$version_major.$version_build"
+}
+
+Task default -depends ShowVersion
+
+Task ShowVersion {
+  write-host "version_in_properties: $version_in_properties, version: $version"
+}</dev:code>
+        <dev:remarks>
+			<maml:para>Description</maml:para>
+			<maml:para>-----------</maml:para>
+			<maml:para>Note 1: Invoking above script with Invoke-Psake -properties @{'version_build' = '2'} would output: "version_in_properties: 1.0.0.0, version: 1.0.0.2"</maml:para>
+			<maml:para>Note 2: You can have more than 1 "DerivedProperties" function defined in the build script</maml:para>
+			<maml:para></maml:para>
+			<maml:para></maml:para>
+			<maml:para></maml:para>
+        </dev:remarks>
+        <command:commandLines>
+          <command:commandLine>
+            <command:commandText />
+          </command:commandLine>
+        </command:commandLines>
+      </command:example>
+    </command:examples>
+    <maml:relatedLinks>
+      <maml:navigationLink>
+		<maml:linkText>Properties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
+		<maml:linkText>Invoke-psake</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
     </maml:relatedLinks>
@@ -1625,6 +1809,10 @@ Total:  00:00:00.0782496</dev:code>
 	     <maml:uri />
       </maml:navigationLink>	
 	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
 		<maml:linkText>FormatTaskName</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
@@ -1823,6 +2011,10 @@ The solution is to wrap the condition in () so that PS will evaluate it first.
 		<maml:linkText>Properties</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
+	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
     </maml:relatedLinks>
 	  <maml:navigationLink>	
 		<maml:linkText>Framework</maml:linkText>
@@ -1959,6 +2151,10 @@ The solution is to wrap the condition in () so that PS will evaluate it first.
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
         <maml:linkText>Task</maml:linkText>
 	     <maml:uri />
       </maml:navigationLink>
@@ -2091,6 +2287,10 @@ The solution is to wrap the condition in () so that PS will evaluate it first.
       </maml:navigationLink>
 	  <maml:navigationLink>	
 		<maml:linkText>Properties</maml:linkText>
+		<maml:uri />
+      </maml:navigationLink>
+	  <maml:navigationLink>
+	    <maml:linkText>DerivedProperties</maml:linkText>
 		<maml:uri />
       </maml:navigationLink>
 	  <maml:navigationLink>
