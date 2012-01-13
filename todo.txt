@@ -1,0 +1,48 @@
+context
+  a ładowanie configu
+jak się powinien miec do siebie context i config
+czy na prawdę powinno być tak, że config można ustawić z z katalogu z psake.psm1 i z katalogu z default.ps1
+  nested musi to obsługiwać
+
+psake.cmd działający bez psake.ps1
+
+parametersets
+
+createconfigurationordefault
+
+Te dwa są tego deva:
+zrobić to PsakeSetup i PsakeTearDown i by mozna bylo dodać więcej hooks
+-noreport
+
+exec -errorCode {param($exitCode) $exitCode > 8 }
+
+setshouldexit
+
+
+task PsakeHelp {
+  get-help Invoke-Psake -full
+} # Ale lepiej uzyc tego co w najnowszym psake, że z psake.cmd jest odpalenie powyższego
+
+plik functions.ps1 jako functions.psm1 moduł ładowany z psake-config.ps1, w ten sposób łatwo zauważysz, jak używam zmiennej z skryptu w funkcji
+
+-failureMessage dla Exec z psake, w ten sposób widać będzie, że się testy wywaliły!!!
+
+$framework = 4.0x64
+
+
+
+
+
+by duration w build summary to było duration a nie timestamp
+
+dalej nie działa psake-config z katalogu z psake.psm1, ale to właściwie OK, bo się robi to import-module, wiec jakby mogło być inaczej
+
+dodać specki i dokumentację i examples
+
+wszystko w messages
+
+Cleanup-Environment w docs czyści dwa razy, bo jest też w finally
+
+# Execute the build file to set up the tasks and defaults komentarz na właściwe miejsce
+
+required properties jako moduł, nie core psake

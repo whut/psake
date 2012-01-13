@@ -72,8 +72,8 @@ function Invoke-Task
                         & $task.PreAction
                     }
 
-                    if ($currentContext.config.taskNameFormat -is [ScriptBlock]) {
-                        & $currentContext.config.taskNameFormat $taskName
+                    if ($currentContext.formatTaskName -is [ScriptBlock]) {
+                        & $currentContext.formatTaskName $taskName
                     } else {
                         Write-ColoredOutput ($currentContext.config.taskNameFormat -f $taskName) -foregroundcolor Cyan
                     }
@@ -216,7 +216,7 @@ function FormatTaskName {
     param(
         [Parameter(Position=0,Mandatory=1)]$format
     )
-    $psake.context.Peek().config.taskNameFormat = $format
+    $psake.context.Peek().formatTaskName = $format
 }
 
 # .ExternalHelp  psake.psm1-help.xml
@@ -250,7 +250,7 @@ function Framework {
 function Invoke-psake {
     [CmdletBinding()]
     param(
-        [Parameter(Position = 0, Mandatory = 0)][string] $buildFile, 
+        [Parameter(Position = 0, Mandatory = 0)][string] $buildFile = $psake.config.defaultBuildFileName, 
         [Parameter(Position = 1, Mandatory = 0)][string[]] $taskList = @(), 
         [Parameter(Position = 2, Mandatory = 0)][string] $framework,
         [Parameter(Position = 3, Mandatory = 0)][switch] $docs = $false, 
@@ -259,15 +259,9 @@ function Invoke-psake {
         [Parameter(Position = 6, Mandatory = 0)][switch] $nologo = $false
     )
     try {
-        if (-not $nologo) {
-            "psake version {0}`nCopyright (c) 2010 James Kovacs`n" -f $psake.version
-        }
- 
-        # If the default.ps1 file exists and the given "buildfile" isn 't found assume that the given 
-        # $buildFile is actually the target Tasks to execute in the default.ps1 script. 
-        if ($buildFile -and !(test-path $buildFile -pathType Leaf) -and (test-path $psake.config_default.buildFileName -pathType Leaf)) {
+        if ($buildFile -and !(test-path $buildFile -pathType Leaf) -and (test-path $psake.config.defaultBuildFileName -pathType Leaf)) {
             $taskList = $buildFile.Split(', ')
-            $buildFile = $psake.config_default.buildFileName
+            $buildFile = $psake.config.defaultBuildFileName
         }
 
         # Execute the build file to set up the tasks and defaults
@@ -275,9 +269,11 @@ function Invoke-psake {
 
         $psake.build_script_file = get-item $buildFile
         $psake.build_script_dir = $psake.build_script_file.DirectoryName
-        $psake.build_success = $false
+
+        Load-Configuration $psake.build_script_dir
 
         $psake.context.push(@{
+            "formatTaskName" = $psake.config.taskNameFormat;
             "taskSetupScriptBlock" = {};
             "taskTearDownScriptBlock" = {};
             "executedTasks" = new-object System.Collections.Stack;
@@ -288,10 +284,14 @@ function Invoke-psake {
             "tasks" = @{};
             "properties" = @();
             "includes" = new-object System.Collections.Queue;
-            "config" = Create-ConfigurationForNewContext $buildFile $framework
         })
 
-        Load-Configuration $psake.build_script_dir
+        if (!$framework) {
+            $framework = $psake.config.framework
+        }
+
+        $psake.build_success = $false
+        $psake.framework_version = $framework
 
         Load-Modules
         
@@ -358,8 +358,7 @@ function Invoke-psake {
 
         $psake.build_success = $true
     } catch {
-        $currentConfig = Get-CurrentConfigurationOrDefault
-        if ($currentConfig.verboseError) {
+        if ($psake.config.verboseError) {
             $error_message = "{0}: An Error Occurred. See Error Details Below: `n" -f (Get-Date) 
             $error_message += ("-" * 70) + "`n"
             $error_message += Resolve-Error $_
@@ -383,7 +382,6 @@ function Invoke-psake {
             } else {
                 Write-ColoredOutput $error_message -foregroundcolor Red
             }
-
         }
     } finally {
         Cleanup-Environment
@@ -397,8 +395,7 @@ function Write-ColoredOutput {
         [System.ConsoleColor] $foregroundcolor
     )
 
-    $currentConfig = Get-CurrentConfigurationOrDefault
-    if ($currentConfig.coloredOutput -eq $true) {
+    if ($psake.config.coloredOutput -eq $true) {
         if (($Host.UI -ne $null) -and ($Host.UI.RawUI -ne $null)) {
             $previousColor = $Host.UI.RawUI.ForegroundColor
             $Host.UI.RawUI.ForegroundColor = $foregroundcolor
@@ -413,9 +410,8 @@ function Write-ColoredOutput {
 }
 
 function Load-Modules {
-    $currentConfig = $psake.context.peek().config
-    if ($currentConfig.modules) {
-        $currentConfig.modules | foreach {
+    if ($psake.config.modules) {
+        $psake.config.modules | foreach {
             resolve-path $_ | foreach {
                 "Loading module: $_"
                 $module = import-module $_ -passthru
@@ -435,9 +431,22 @@ function Load-Configuration {
 
     $psakeConfigFilePath = (join-path $configdir "psake-config.ps1")
 
+    if (!$psake.config) {
+        $psake.config = new-object psobject -property @{
+            defaultBuildFileName = "default.ps1";
+            framework = "3.5";
+            taskNameFormat = "Executing {0}";
+            exitCode = "1";
+            verboseError = $false;
+            coloredOutput = $false;
+            modules = (new-object PSObject -property @{
+                autoload = $false
+            })
+        }
+    }
+
     if (test-path $psakeConfigFilePath -pathType Leaf) {
         try {
-            $config = Get-CurrentConfigurationOrDefault
             . $psakeConfigFilePath
         } catch {
             throw "Error Loading Configuration from psake-config.ps1: " + $_
@@ -445,44 +454,7 @@ function Load-Configuration {
     }
 }
 
-function Get-CurrentConfigurationOrDefault() {
-    if ($psake.context.count -gt 0) {
-        return $psake.context.peek().config
-    } else {
-        return $psake.config_default
-    }
-}
-
-function Create-ConfigurationForNewContext {
-    param(
-        [string] $buildFile,
-        [string] $framework
-    )
-
-    $previousConfig = Get-CurrentConfigurationOrDefault
-
-    $config = new-object psobject -property @{
-        buildFileName = $previousConfig.buildFileName;
-        framework = $previousConfig.framework;
-        taskNameFormat = $previousConfig.taskNameFormat;
-        verboseError = $previousConfig.verboseError;
-        coloredOutput = $previousConfig.coloredOutput;
-        modules = $previousConfig.modules
-    }
-
-    if ($framework) {
-        $config.framework = $framework;
-    }
-
-    if ($buildFile) {
-        $config.buildFileName = $buildFile;
-    }
-
-    return $config
-}
-
 function Configure-BuildEnvironment {
-    $framework = $psake.context.peek().config.framework
     if ($framework.Length -ne 3 -and $framework.Length -ne 6) {
         throw ($msgs.error_invalid_framework -f $framework)
     }
@@ -661,18 +633,10 @@ $script:psake = @{}
 $psake.version = "4.00" # contains the current version of psake
 $psake.context = new-object system.collections.stack # holds onto the current state of all variables
 $psake.run_by_psake_build_tester = $false # indicates that build is being run by psake-BuildTester
-$psake.config_default = new-object psobject -property @{
-    buildFileName = "default.ps1";
-    framework = "3.5";
-    taskNameFormat = "Executing {0}";
-    verboseError = $false;
-    coloredOutput = $true;
-    modules = $null;
-} # contains default configuration, can be overriden in psake-config.ps1 in directory with psake.psm1 or in directory with current build script
-
 $psake.build_success = $false # indicates that the current build was successful
 $psake.build_script_file = $null # contains a System.IO.FileInfo for the current build script
 $psake.build_script_dir = "" # contains a string with fully-qualified path to current build script
+$psake.framework_version = "" # contains the framework version # for the current build
 
 Load-Configuration
 
