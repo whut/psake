@@ -480,14 +480,15 @@ function LoadModules {
     $currentConfig = $psake.context.peek().config
     if ($currentConfig.modules) {
 
-        $scope = $currentConfig.moduleScope
-
-        $global = [string]::Equals($scope, "global", [StringComparison]::CurrentCultureIgnoreCase)
+        if ($currentConfig.moduleScope) {
+            writecoloredoutput $msgs.warning_deprecated_modulescope_variable -foregroundcolor Yellow
+            $currentConfig.modulesGlobal = [string]::Equals($currentConfig.moduleScope, "global", [StringComparison]::CurrentCultureIgnoreCase)
+        }
 
         $currentConfig.modules | foreach {
             resolve-path $_ | foreach {
                 "Loading module: $_"
-                $module = import-module $_ -passthru -DisableNameChecking -global:$global
+                $module = import-module $_ -passthru -DisableNameChecking -global:$currentConfig.modulesGlobal
                 if (!$module) {
                     throw ($msgs.error_loading_module -f $_.Name)
                 }
@@ -537,7 +538,7 @@ function CreateConfigurationForNewContext {
         verboseError = $previousConfig.verboseError;
         coloredOutput = $previousConfig.coloredOutput;
         modules = $previousConfig.modules;
-        moduleScope =  $previousConfig.moduleScope;
+        modulesGlobal =  $previousConfig.modulesGlobal;
     }
 
     if ($framework) {
@@ -812,6 +813,7 @@ convertfrom-stringdata @'
     error_build_file_not_found = Could not find the build file {0}.
     error_no_default_task = 'default' task required.
     error_loading_module = Error loading module {0}.
+    warning_deprecated_modulescope_variable = Use of psake $config.moduleScope='global' is deprecated, use `$config.modulesGlobal=`$true"
     warning_deprecated_framework_variable = Warning: Using global variable $framework to set .NET framework version used is deprecated. Instead use Framework function or configuration file psake-config.ps1.
     required_variable_not_set = Variable {0} must be set to run task {1}.
     postcondition_failed = Postcondition failed for task {0}.
@@ -834,7 +836,7 @@ $psake.config_default = new-object psobject -property @{
     verboseError = $false;
     coloredOutput = $true;
     modules = $null;
-    moduleScope = "";
+    modulesGlobal = $false;
 } # contains default configuration, can be overriden in psake-config.ps1 in directory with psake.psm1 or in directory with current build script
 
 $psake.build_success = $false # indicates that the current build was successful

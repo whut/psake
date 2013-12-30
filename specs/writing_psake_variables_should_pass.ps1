@@ -31,4 +31,5 @@ task Verify -description "This task verifies psake's variables" {
   Assert (!$config.verboseError) '$psake.context.peek().config.verboseError should be $false'
   Assert ($config.coloredOutput) '$psake.context.peek().config.coloredOutput should be $false'
   Assert ($config.modules -eq $null) '$psake.context.peek().config.modules is not $null'
+  Assert ($config.modulesGlobal -eq $false) '$psake.context.peek().config.modulesGlobal is not $false'
 }

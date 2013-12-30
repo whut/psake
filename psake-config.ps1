@@ -8,6 +8,7 @@ $config.taskNameFormat="Executing {0}"
 $config.verboseError=$false
 $config.coloredOutput = $true
 $config.modules=$null
+$config.modulesGlobal=$false
 
 -------------------------------------------------------------------
 Load modules from .\modules folder and from file my_module.psm1
