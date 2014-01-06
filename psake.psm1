@@ -301,17 +301,27 @@ function Framework {
 }
 
 # .ExternalHelp  psake.psm1-help.xml
+function ToolsVersion {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position=0,Mandatory=1)][string]$toolsVersion
+    )
+    $psake.context.Peek().config.toolsVersion = $toolsVersion
+}
+
+# .ExternalHelp  psake.psm1-help.xml
 function Invoke-psake {
     [CmdletBinding()]
     param(
         [Parameter(Position = 0, Mandatory = 0)][string] $buildFile,
         [Parameter(Position = 1, Mandatory = 0)][string[]] $taskList = @(),
         [Parameter(Position = 2, Mandatory = 0)][string] $framework,
-        [Parameter(Position = 3, Mandatory = 0)][switch] $docs = $false,
-        [Parameter(Position = 4, Mandatory = 0)][hashtable] $parameters = @{},
-        [Parameter(Position = 5, Mandatory = 0)][hashtable] $properties = @{},
-        [Parameter(Position = 6, Mandatory = 0)][alias("init")][scriptblock] $initialization = {},
-        [Parameter(Position = 7, Mandatory = 0)][switch] $nologo = $false
+        [Parameter(Position = 3, Mandatory = 0)][string] $toolsVersion,
+        [Parameter(Position = 4, Mandatory = 0)][switch] $docs = $false,
+        [Parameter(Position = 5, Mandatory = 0)][hashtable] $parameters = @{},
+        [Parameter(Position = 6, Mandatory = 0)][hashtable] $properties = @{},
+        [Parameter(Position = 7, Mandatory = 0)][alias("init")][scriptblock] $initialization = {},
+        [Parameter(Position = 8, Mandatory = 0)][switch] $nologo = $false
     )
     try {
         if (-not $nologo) {
@@ -347,7 +357,7 @@ function Invoke-psake {
             "aliases" = @{};
             "properties" = @();
             "includes" = new-object System.Collections.Queue;
-            "config" = CreateConfigurationForNewContext $buildFile $framework
+            "config" = CreateConfigurationForNewContext $buildFile $framework $toolsVersion
         })
 
         LoadConfiguration $psake.build_script_dir
@@ -355,8 +365,6 @@ function Invoke-psake {
         LoadModules
 
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-        set-location $psake.build_script_dir
 
         $frameworkOldValue = $framework
         . $psake.build_script_file.FullName
@@ -525,7 +533,8 @@ function GetCurrentConfigurationOrDefault() {
 function CreateConfigurationForNewContext {
     param(
         [string] $buildFile,
-        [string] $framework
+        [string] $framework,
+        [string] $toolsVersion
     )
 
     $previousConfig = GetCurrentConfigurationOrDefault
@@ -533,15 +542,20 @@ function CreateConfigurationForNewContext {
     $config = new-object psobject -property @{
         buildFileName = $previousConfig.buildFileName;
         framework = $previousConfig.framework;
+        toolsVersion = $previousConfig.toolsVersion;
         taskNameFormat = $previousConfig.taskNameFormat;
         verboseError = $previousConfig.verboseError;
         coloredOutput = $previousConfig.coloredOutput;
         modules = $previousConfig.modules;
         moduleScope =  $previousConfig.moduleScope;
     }
-
+# przenies do load config
     if ($framework) {
         $config.framework = $framework;
+    }
+
+    if ($toolsVersion) {
+        $config.toolsVersion = $toolsVersion;
     }
 
     if ($buildFile) {
@@ -553,7 +567,7 @@ function CreateConfigurationForNewContext {
 
 function ConfigureBuildEnvironment {
     $framework = $psake.context.peek().config.framework
-    if ($framework -cmatch '^((?:\d+\.\d+)(?:\.\d+){0,1})(x86|x64){0,1}$') {
+    if ($framework -cmatch '^(\d\.\d+(?:\.\d){0,1})(x86|x64){0,1}$') {
         $versionPart = $matches[1]
         $bitnessPart = $matches[2]
     } else {
@@ -579,9 +593,11 @@ function ConfigureBuildEnvironment {
         '4.0' {
             $versions = @('v4.0.30319')
         }
+        '4.5' {
+            $versions = @('v4.0.30319')
+        }
         '4.5.1' {
             $versions = @('v4.0.30319')
-            $buildToolsVersions = @('12.0')
         }
         default {
             throw ($msgs.error_unknown_framework -f $versionPart, $framework)
@@ -593,22 +609,18 @@ function ConfigureBuildEnvironment {
         switch ($bitnessPart) {
             'x86' {
                 $bitness = 'Framework'
-                $buildToolsKey = 'MSBuildToolsPath32'
             }
             'x64' {
                 $bitness = 'Framework64'
-                $buildToolsKey = 'MSBuildToolsPath'
             }
             { [string]::IsNullOrEmpty($_) } {
                 $ptrSize = [System.IntPtr]::Size
                 switch ($ptrSize) {
                     4 {
                         $bitness = 'Framework'
-                        $buildToolsKey = 'MSBuildToolsPath32'
                     }
                     8 {
                         $bitness = 'Framework64'
-                        $buildToolsKey = 'MSBuildToolsPath'
                     }
                     default {
                         throw ($msgs.error_unknown_pointersize -f $ptrSize)
@@ -623,24 +635,19 @@ function ConfigureBuildEnvironment {
     if ($buildToolsVersions -ne $null) {
         $frameworkDirs = @($buildToolsVersions | foreach { (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\$_" -Name $buildToolsKey).$buildToolsKey })
     }
-    $frameworkDirs = $frameworkDirs + @($versions | foreach { "$env:windir\Microsoft.NET\$bitness\$_\" })
     
-    for ($i = 0; $i -lt $frameworkDirs.Count; $i++) {
-        $dir = $frameworkDirs[$i]
-        if ($dir -Match "\$\(Registry:HKEY_LOCAL_MACHINE(.*?)@(.*)\)") {
-            $key = "HKLM:" + $matches[1]
-            $name = $matches[2]
-            $dir = (Get-ItemProperty -Path $key -Name $name).$name
-            $frameworkDirs[$i] = $dir
-        }
-    }
-    
+    $frameworkDirs = $versions | foreach { "$env:windir\Microsoft.NET\$bitness\$_\" }
+
+
     $frameworkDirs | foreach { Assert (test-path $_ -pathType Container) ($msgs.error_no_framework_install_dir_found -f $_)}
 
     $env:path = ($frameworkDirs -join ";") + ";$env:path"
     # if any error occurs in a PS function then "stop" processing immediately
     # this does not effect any external programs that return a non-zero exit code
     $global:ErrorActionPreference = "Stop"
+
+    set-location $psake.build_script_dir
+
 }
 
 function CleanupEnvironment {
@@ -830,6 +837,7 @@ $psake.run_by_psake_build_tester = $false # indicates that build is being run by
 $psake.config_default = new-object psobject -property @{
     buildFileName = "default.ps1";
     framework = "4.0";
+    toolsVersion = $null;
     taskNameFormat = "Executing {0}";
     verboseError = $false;
     coloredOutput = $true;
@@ -843,4 +851,4 @@ $psake.build_script_dir = "" # contains a string with fully-qualified path to cu
 
 LoadConfiguration
 
-export-modulemember -function Invoke-psake, Invoke-Task, Task, Properties, Include, FormatTaskName, TaskSetup, TaskTearDown, Framework, Assert, Exec -variable psake
+export-modulemember -function Invoke-psake, Invoke-Task, Task, Properties, Include, FormatTaskName, TaskSetup, TaskTearDown, Framework, ToolsVersion, Assert, Exec -variable psake
