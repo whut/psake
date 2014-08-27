@@ -1,0 +1,6 @@
+readme do psake, by napisa³o jak zacz¹c
+format error by jednak by³ ³adniejszy jak wczeœniej dla prostych b³edów z psake jakos
+  mo¿e tez specjalnie formatowac b³edy z powershella?
+czy import-module na prawdê powinien ignorowaæ warninigi???, lepiej konfigurowalne
+ConfigureBuildEnvironment behave like ToolsLocationHelper jakoœ?
+framework version .net 4.5.1 to nie to!!!
